@@ -1,0 +1,72 @@
+# Temporary and binary files
+*~
+*.py[cod]
+*.so
+!.isort.cfg
+!setup.cfg
+*.orig
+*.log
+*.pot
+__pycache__/
+.cache/*
+.mypy_cache*
+.*.swp
+*/.ipynb_checkpoints/*
+src/model_artifacts/*
+
+# Project files
+.ropeproject
+.project
+.pydevproject
+.settings
+.idea
+.vscode
+tags
+
+# Package files
+*.egg
+*.eggs/
+.installed.cfg
+*.egg-info
+
+# Unittest and coverage
+htmlcov/*
+.coverage*
+.tox
+.nox
+junit.xml
+coverage.xml
+.pytest_cache/
+*,cover
+
+# Build and docs folder/files
+build/
+dist/*
+sdist/*
+docs/api/*
+docs/_rst/*
+docs/_build/*
+cover/*
+build_prod.sh
+
+# Per-project virtualenvs
+venv/
+.venv*/
+src/parsing_service/.env
+
+# exclude data from source control by default
+data/
+
+# Terraform states
+.terraform/
+# Terraform lock files in module subdirectories
+infra/modules/**/.terraform.lock.hcl
+
+# Mac OS-specific storage files
+.DS_Store
+
+# secret
+.secret
+.secrets.toml
+
+local

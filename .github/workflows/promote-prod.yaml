@@ -1,0 +1,55 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read   # REQUIRED for release-it
+  packages: read   # REQUIRED for GHCR
+
+env:
+  environment: prod
+  IMAGE_NAME: veridex_backend
+  IMAGE_URI: ghcr.io/veridexai/veridex_backend
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get new version
+        id: get_version
+        run: |
+          VERSION=$(git describe --tags --abbrev=0)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_URI }}:${{ env.environment }}
+            ${{ env.IMAGE_URI }}:${{ github.sha }}
+            ${{ env.environment == 'prod' && format('{0}:latest', env.IMAGE_URI) || null }}
+            ${{ env.environment == 'prod' && format('{0}:{1}', env.IMAGE_URI, env.version) || null }}
+
+      - name: Delete older GHCR versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ env.IMAGE_NAME }}
+          package-type: "container"
+          min-versions-to-keep: 2
+          token: ${{ secrets.GH_TOKEN }}

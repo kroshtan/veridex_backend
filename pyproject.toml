@@ -1,0 +1,198 @@
+[project]
+name = "veridex"
+description = "API for webpage truth checks"
+version = "0.0.1"
+authors = [
+    { name = "Floris van Beers", email = "freelancing@kroshtan.com" },
+]
+readme = "README.md"
+requires-python = ">=3.12, <3.13"
+
+# Minimal shared dependencies
+dependencies = [
+    "beautifulsoup4~=4.13",
+    "dynaconf~=3.2",
+    "fastapi~=0.117.1",
+    "langchain-openai>=0.2",
+    "langgraph>=0.2",
+    "pillow>=11.0",
+    "playwright>=1.58.0",
+    "playwright-stealth>=2.0.2",
+    "praw>=7.8.1",
+    "pydantic~=2.11.9",
+    "python-multipart~=0.0.20",
+    "python-whois>=0.9.6",
+    "structlog>=25.5.0",
+    "uvicorn~=0.37.0",
+]
+
+[dependency-groups]
+dev = [
+    "uv>=0.10.2",
+    "pip>=26.0.1",
+    "httpx>=0.28.1",
+    "ipython>=9.5.0",
+    "mypy>=1.19.1",
+    "pre-commit>=4.3.0",
+    "pydoclint>=0.8.3",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.0.0",
+    "requests>=2.32.5",
+    "ruff>=0.13.1",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["**/settings.toml", "**/*.txt"]
+
+[tool.ruff]
+line-length = 119
+exclude = ["scripts"]
+
+[tool.ruff.lint]
+select = [
+    # Annotations: missing (return) types
+    "ANN",
+    # Bugbear: common bug patterns or design problems
+    "B",
+    # Comprehensions: Write better list/set/dict comprehensions
+    "C4",
+    # Complexity: McCabe complexity checker
+    "C90",
+    # Pydocstyle: docstring conventions
+    "D",
+    # Pycodesyle: Style guide enforcement
+    "E",
+    # Pyflakes: Source files errors
+    "F",
+    # Logging format: Basic logging format errors
+    "G",
+    # Isort: import sorting
+    "I",
+    # Implicit namespace packages: Check if __init__.py is present
+    "INP",
+    # Implicit string concatenation
+    "ISC",
+    # Naming: Variable naming convention
+    "N",
+    # Perflint: Performance linting
+    "PERF",
+    # Pylint: enforcing more code standards
+    "PL",
+    # Refurb: modernize your code
+    "FURB",
+    # Simplify: Helps simplify your code
+    "SIM",
+    # Print: Forbid print statements
+    "T20",
+    # to do: Format to do comments
+    "TD",
+    # Ban relative imports
+    "TID252",
+    # Pyupgrade: Upgrade syntax to newer versions
+    "UP",
+]
+
+ignore = [
+    # Allow Any, allow untyped args and kwargs
+    "ANN002", "ANN003", "ANN401",
+    # Opinionated pydocstyle rules
+    "D100", "D101", "D104", "D106", "D202", "D203", "D212", "D301", "D401", "D413",
+    # Allow use of f-string in logging
+    "G004",
+    # Does not work with Ruff formatter
+    "ISC001",
+    # Allow to do without author or URL
+    "TD002", "TD003",
+    # Ignore some aggresive pylint rules
+    "PLR0913", "PLR2004"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+    # Unused module imports in __init__.py
+    "F401", "F403",
+]
+".github/skills/*/assets/*" = [
+    # Asset files are examples, not importable packages
+    "INP001",
+]
+
+
+[tool.ruff.lint.isort]
+known-first-party = ["my_api"]
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = ["validator", "field_validator"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    # Allow initialization of FastAPI dependencies
+    "fastapi.Header",
+    "fastapi.Depends",
+    "fastapi.Query",
+]
+
+[tool.mypy]
+exclude = [".git", "venv"]
+ignore_missing_imports = true
+disable_error_code = ['import-untyped']
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+strict_equality = true
+
+[tool.pydoclint]
+exclude = ["scripts"]
+style = "sphinx"
+allow-init-docstring = true
+require-return-section-when-returning-nothing = false
+check-return-types = false
+check-yield-types = false
+check-style-mismatch = true
+arg-type-hints-in-docstring = false
+should-document-star-arguments = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = [
+    "--cov=src",
+    "--durations=0",
+    "--durations-min=2",
+    "--strict-markers",
+    "--cov-append",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-report=term",
+    "--cov-report=annotate"
+]
+markers = [
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
+]
+
+[tool.coverage.report]
+skip_covered = true
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "def __repr__",
+    "def __str__",
+    "@abstractmethod",
+]
+
+[tool.uv]
+environments = [
+    "sys_platform == 'darwin'",
+    "sys_platform == 'linux'",
+]
+
+[tool.uv.pip]
+emit-find-links = true
+no-strip-extras = true

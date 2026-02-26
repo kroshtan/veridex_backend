@@ -1,0 +1,8 @@
+[default]
+logging_level = "DEBUG"
+reddit_user_agent = "veridex/1.0"
+
+[development]
+
+[main]
+logging_level = "INFO"
