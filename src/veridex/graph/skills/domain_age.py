@@ -71,7 +71,7 @@ def _lookup_whois(domain: str) -> dict[str, str]:
             return val.strftime("%Y-%m-%d")
         return str(val)
 
-    return {k: _str(v) for k, v in w.items() if _str(v)}  # type: ignore[union-attr]
+    return {k: _str(v) for k, v in w.items() if _str(v)}
 
 
 def _domain_age_days(whois_data: dict[str, str]) -> int | None:
@@ -127,9 +127,7 @@ class DomainAgeSkill(Skill):
         # Build a human-readable summary of key fields
         age_days = _domain_age_days(whois_data)
         age_str = (
-            f"{age_days} days ({age_days // 365}y {(age_days % 365) // 30}m)"
-            if age_days is not None
-            else "unknown"
+            f"{age_days} days ({age_days // 365}y {(age_days % 365) // 30}m)" if age_days is not None else "unknown"
         )
 
         interesting_keys = (
@@ -145,15 +143,11 @@ class DomainAgeSkill(Skill):
             "dnssec",
             "name_servers",
         )
-        whois_summary = "\n".join(
-            f"  {k}: {whois_data[k]}" for k in interesting_keys if k in whois_data
-        )
+        whois_summary = "\n".join(f"  {k}: {whois_data[k]}" for k in interesting_keys if k in whois_data)
 
         # LLM analysis
         prompt = f"Domain: {domain}\nAge: {age_str}\n\nWHOIS data:\n{whois_summary}"
-        response = await _get_llm().ainvoke(
-            [SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)]
-        )
+        response = await _get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
 
         lines = [
             "[domain_age]",

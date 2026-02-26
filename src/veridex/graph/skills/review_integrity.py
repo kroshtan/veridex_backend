@@ -50,6 +50,7 @@ def _get_llm() -> ChatOpenAI:
 
 # ── Review extraction ─────────────────────────────────────────────────────────
 
+
 def _safe_str(val: object) -> str:
     """
     Coerce a value to a non-None string.
@@ -82,12 +83,14 @@ def _extract_from_jsonld(html: str) -> list[dict[str, str]]:
             if t == "Review" or (isinstance(t, list) and "Review" in t):
                 author = node.get("author", {})
                 rating = node.get("reviewRating", {})
-                reviews.append({
-                    "author": _safe_str(author.get("name") if isinstance(author, dict) else author),
-                    "rating": _safe_str(rating.get("ratingValue") if isinstance(rating, dict) else rating),
-                    "date": _safe_str(node.get("datePublished", "")),
-                    "body": _safe_str(node.get("reviewBody", ""))[:_MAX_REVIEW_CHARS],
-                })
+                reviews.append(
+                    {
+                        "author": _safe_str(author.get("name") if isinstance(author, dict) else author),
+                        "rating": _safe_str(rating.get("ratingValue") if isinstance(rating, dict) else rating),
+                        "date": _safe_str(node.get("datePublished", "")),
+                        "body": _safe_str(node.get("reviewBody", ""))[:_MAX_REVIEW_CHARS],
+                    }
+                )
             # Recurse into known container keys
             for key in ("review", "@graph", "itemListElement"):
                 if key in node:
@@ -115,16 +118,14 @@ def _extract_from_microdata(html: str) -> list[dict[str, str]]:
         author_el = container.find(itemprop="author")
         rating_el = container.find(itemprop="ratingValue")
         date_el = container.find(itemprop="datePublished")
-        reviews.append({
-            "author": _safe_str(author_el.get_text(strip=True) if author_el else ""),
-            "rating": _safe_str(
-                rating_el.get("content") or rating_el.get_text(strip=True) if rating_el else ""
-            ),
-            "date": _safe_str(
-                date_el.get("content") or date_el.get_text(strip=True) if date_el else ""
-            ),
-            "body": _safe_str(body_el.get_text(strip=True) if body_el else "")[:_MAX_REVIEW_CHARS],
-        })
+        reviews.append(
+            {
+                "author": _safe_str(author_el.get_text(strip=True) if author_el else ""),
+                "rating": _safe_str(rating_el.get("content") or rating_el.get_text(strip=True) if rating_el else ""),
+                "date": _safe_str(date_el.get("content") or date_el.get_text(strip=True) if date_el else ""),
+                "body": _safe_str(body_el.get_text(strip=True) if body_el else "")[:_MAX_REVIEW_CHARS],
+            }
+        )
 
     return reviews
 
@@ -143,9 +144,9 @@ def _find_reviews_url(html: str, page_url: str) -> str | None:
     for a in soup.find_all("a", href=True):
         href: str = a["href"]
         text = a.get_text(strip=True).lower()
-        if any(kw in text for kw in (
-            "all reviews", "see reviews", "more reviews", "customer reviews", "all customer"
-        )):
+        if any(
+            kw in text for kw in ("all reviews", "see reviews", "more reviews", "customer reviews", "all customer")
+        ):
             return urljoin(base, href)
         if re.search(r"/reviews?/?(\?|#|$)|[?&]tab=reviews|#reviews?", href, re.IGNORECASE):
             return urljoin(base, href)
@@ -159,10 +160,14 @@ def _fetch_html(url: str) -> str:
 
     :param url: URL to fetch.
     :return: Response body decoded as UTF-8.
+    :raises ValueError: If the fetched content cannot be decoded as a string.
     """
     req = UrlRequest(url, headers={"User-Agent": "Mozilla/5.0"})
     with urlopen(req, timeout=_FETCH_TIMEOUT) as resp:  # noqa: S310
-        return resp.read().decode("utf-8", errors="replace")
+        html = resp.read().decode("utf-8", errors="replace")
+        if isinstance(html, str):
+            return html
+        raise ValueError("Fetched content is not a string")
 
 
 def _format_reviews(reviews: list[dict[str, str]]) -> str:
@@ -231,21 +236,16 @@ class ReviewIntegritySkill(Skill):
                 "skill_results": [
                     "[review_integrity]\n"
                     "No structured review data found on the page"
-                    + (f" or at {reviews_url}" if reviews_url else "") + "."
+                    + (f" or at {reviews_url}" if reviews_url else "")
+                    + "."
                 ]
             }
 
         # Step 3 – LLM integrity analysis
         review_text = _format_reviews(reviews)
         total = len(reviews)
-        prompt = (
-            f"Total reviews extracted: {total} (showing up to {_MAX_REVIEWS})\n"
-            f"Source: {source}\n\n"
-            f"{review_text}"
-        )
-        response = await _get_llm().ainvoke(
-            [SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)]
-        )
+        prompt = f"Total reviews extracted: {total} (showing up to {_MAX_REVIEWS})\nSource: {source}\n\n{review_text}"
+        response = await _get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
 
         lines = [
             "[review_integrity]",

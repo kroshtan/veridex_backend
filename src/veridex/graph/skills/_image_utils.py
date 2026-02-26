@@ -22,7 +22,7 @@ class _ProductImageOutput(BaseModel):
 
 
 @cache
-def _get_image_select_llm() -> object:
+def _get_image_select_llm() -> ChatOpenAI:
     return ChatOpenAI(
         model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
     ).with_structured_output(_ProductImageOutput)
@@ -59,7 +59,7 @@ async def select_product_images(all_urls: list[str], max_images: int = 3) -> lis
     if not all_urls:
         return []
     url_list = "\n".join(all_urls[:_MAX_CANDIDATE_URLS])
-    output: _ProductImageOutput = await _get_image_select_llm().ainvoke(  # type: ignore[union-attr,assignment]
+    output: _ProductImageOutput = await _get_image_select_llm().ainvoke(
         [
             SystemMessage(content=_IMAGE_SYSTEM),
             HumanMessage(content=f"Image URLs:\n{url_list}"),

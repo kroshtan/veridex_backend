@@ -58,7 +58,7 @@ class _ClaimsOutput(BaseModel):
 
 
 @cache
-def _get_extract_llm() -> object:
+def _get_extract_llm() -> ChatOpenAI:
     return ChatOpenAI(
         model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
     ).with_structured_output(_ClaimsOutput)
@@ -90,15 +90,15 @@ class ClaimsVerificationSkill(Skill):
         content = state["cleaned_content"][:_MAX_CONTENT_CHARS]
 
         # Step 1 – extract claims
-        claims_output: _ClaimsOutput = await _get_extract_llm().ainvoke(  # type: ignore[union-attr,assignment]
+        claims_output: _ClaimsOutput = await _get_extract_llm().ainvoke(
             [SystemMessage(content=_EXTRACT_SYSTEM), HumanMessage(content=content)]
         )
         claims = claims_output.claims
 
         if not claims:
-            return {"skill_results": [
-                "[claims_verification]\nNo specific quality or benefit claims found in the listing."
-            ]}
+            return {
+                "skill_results": ["[claims_verification]\nNo specific quality or benefit claims found in the listing."]
+            }
 
         # Step 2 – verify plausibility
         claims_block = "\n".join(f"{i}. {c}" for i, c in enumerate(claims, start=1))

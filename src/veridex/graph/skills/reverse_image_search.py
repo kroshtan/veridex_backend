@@ -41,6 +41,7 @@ _DROPSHIP_DOMAINS: frozenset[str] = frozenset(
     }
 )
 
+
 def _extract_domain(url: str) -> str:
     """
     Return the registered domain (without www.) from a URL.
@@ -135,4 +136,3 @@ class ReverseImageSearchSkill(Skill):
             lines.append("No known dropship domains detected in reverse image search results.")
 
         return {"skill_results": ["\n".join(lines)]}
-

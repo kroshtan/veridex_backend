@@ -44,19 +44,14 @@ async def analyze_page(body: AnalyzeRequest, request: Request) -> AnalyzeRespons
         raise InternalServerError("Analysis graph is not initialised.")
 
     try:
-        result = await graph.ainvoke(
-            {"page_content": body.page_content, "url": body.url, "flags": body.flags}
-        )
+        result = await graph.ainvoke({"page_content": body.page_content, "url": body.url, "flags": body.flags})
     except Exception as exc:
         logger.error("Graph execution failed", error=str(exc))
         raise InternalServerError(f"Analysis failed: {exc}") from exc
 
     skill_counts = Counter(
-        m.group(1)
-        for entry in result.get("skill_results", [])
-        if (m := re.match(r"\[([^\]]+)\]", entry))
+        m.group(1) for entry in result.get("skill_results", []) if (m := re.match(r"\[([^\]]+)\]", entry))
     )
     logger.info("skills_used", **skill_counts)
 
     return AnalyzeResponse(score=result["score"], explanation=result["explanation"])
-

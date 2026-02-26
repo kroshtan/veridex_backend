@@ -43,7 +43,5 @@ class PageContentSkill(Skill):
         :return: Skill findings appended to ``skill_results``.
         """
         content = state["cleaned_content"][:_MAX_CHARS]
-        response = await _get_llm().ainvoke(
-            [SystemMessage(content=_SYSTEM), HumanMessage(content=content)]
-        )
+        response = await _get_llm().ainvoke([SystemMessage(content=_SYSTEM), HumanMessage(content=content)])
         return {"skill_results": [f"[page_content]\n{response.content}"]}

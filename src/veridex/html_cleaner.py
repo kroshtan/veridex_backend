@@ -4,9 +4,21 @@ from bs4 import BeautifulSoup
 
 # Tags that never contribute readable product information
 _NOISE_TAGS = [
-    "script", "style", "noscript", "iframe", "svg", "img",
-    "header", "footer", "nav", "aside", "form", "button",
-    "meta", "link", "head",
+    "script",
+    "style",
+    "noscript",
+    "iframe",
+    "svg",
+    "img",
+    "header",
+    "footer",
+    "nav",
+    "aside",
+    "form",
+    "button",
+    "meta",
+    "link",
+    "head",
 ]
 
 # Collapse any run of whitespace (spaces, tabs, newlines) to a single newline
@@ -26,12 +38,12 @@ def clean_html(raw_html: str) -> str:
     """
     soup = BeautifulSoup(raw_html, "html.parser")
 
-    for tag in soup(  # type: ignore[call-overload]
-        _NOISE_TAGS
-    ):
+    for tag in soup(_NOISE_TAGS):
         tag.decompose()
 
     text = soup.get_text(separator="\n")
     text = _WHITESPACE_RE.sub(" ", text)
     text = _BLANK_LINES_RE.sub("\n\n", text)
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Extracted text is not a string")
     return text.strip()

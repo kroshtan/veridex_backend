@@ -25,6 +25,7 @@ def preprocess_node(state: AnalysisState) -> dict:
 
 # ── Classification node ───────────────────────────────────────────────────────
 
+
 class _ClassifyOutput(BaseModel):
     page_type: Literal["aggregate_listing", "storefront", "article", "non_product"] = Field(
         description=(
@@ -41,7 +42,7 @@ class _ClassifyOutput(BaseModel):
 
 
 @cache
-def _get_classify_llm() -> object:
+def _get_classify_llm() -> ChatOpenAI:
     return ChatOpenAI(
         model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
     ).with_structured_output(_ClassifyOutput)
@@ -73,16 +74,16 @@ async def classify_node(state: AnalysisState) -> dict:
     :param state: Current graph state; uses ``cleaned_content``.
     :return: ``page_type`` and a classification entry in ``skill_results``.
     """
-    output: _ClassifyOutput = await _get_classify_llm().ainvoke(  # type: ignore[union-attr,assignment]
+    output: _ClassifyOutput = await _get_classify_llm().ainvoke(
         [
             SystemMessage(content=_CLASSIFY_SYSTEM),
             HumanMessage(content=state["cleaned_content"][:8_000]),
         ]
     )
 
-    page_type: PageType = output.page_type  # type: ignore[assignment]
+    page_type: PageType = output.page_type
 
-    label = output.page_type
+    label: str = output.page_type
     if output.platform:
         label = f"{output.page_type} ({output.platform})"
 
@@ -110,14 +111,17 @@ def early_exit_node(state: AnalysisState) -> dict:
     explanation = _EARLY_EXIT_EXPLANATIONS.get(state["page_type"], "Not Implemented")
     return {"score": -1, "explanation": explanation}
 
+
 class _JudgeOutput(BaseModel):
     score: int = Field(ge=0, le=100, description="0 = scam, 100 = fully legitimate")
     explanation: str = Field(description="One sentence explaining the score")
 
 
 @cache
-def _get_judge_llm() -> object:
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key).with_structured_output(_JudgeOutput)
+def _get_judge_llm() -> ChatOpenAI:
+    return ChatOpenAI(
+        model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
+    ).with_structured_output(_JudgeOutput)
 
 
 _JUDGE_SYSTEM = """\
@@ -135,7 +139,7 @@ async def judge_node(state: AnalysisState) -> dict:
     :return: ``score`` and ``explanation``.
     """
     findings = "\n\n".join(state["skill_results"])
-    output: _JudgeOutput = await _get_judge_llm().ainvoke(  # type: ignore[union-attr,assignment]
+    output: _JudgeOutput = await _get_judge_llm().ainvoke(
         [
             SystemMessage(content=_JUDGE_SYSTEM),
             HumanMessage(content=f"Skill findings:\n{findings}"),

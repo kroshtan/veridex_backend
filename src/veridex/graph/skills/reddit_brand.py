@@ -36,7 +36,7 @@ class _BrandOutput(BaseModel):
 
 
 @cache
-def _get_extract_llm() -> object:
+def _get_extract_llm() -> ChatOpenAI:
     return ChatOpenAI(
         model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
     ).with_structured_output(_BrandOutput)
@@ -90,7 +90,7 @@ class RedditBrandSkill(Skill):
             return {"skill_results": ["[reddit_brand]\nSkill disabled: no Reddit credentials configured."]}
 
         # Step 1 – extract brand name
-        brand_output: _BrandOutput = await _get_extract_llm().ainvoke(  # type: ignore[union-attr,assignment]
+        brand_output: _BrandOutput = await _get_extract_llm().ainvoke(
             [
                 SystemMessage(content=_EXTRACT_SYSTEM),
                 HumanMessage(content=state["cleaned_content"][:8_000]),
@@ -107,8 +107,7 @@ class RedditBrandSkill(Skill):
 
         # Step 3 – summarise with LLM
         posts_text = "\n\n".join(
-            f"r/{p['subreddit']} | score {p['score']}\n{p['title']}\n{p['snippet']}".strip()
-            for p in posts
+            f"r/{p['subreddit']} | score {p['score']}\n{p['title']}\n{p['snippet']}".strip() for p in posts
         )
         response = await _get_summarize_llm().ainvoke(
             [

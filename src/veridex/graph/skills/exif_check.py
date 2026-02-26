@@ -139,12 +139,7 @@ class ExifCheckSkill(Skill):
 
         # Step 3 – LLM comparison against listing text
         exif_summary = "\n\n".join(exif_blocks)
-        prompt = (
-            f"Product listing:\n{state['cleaned_content'][:6_000]}\n\n"
-            f"EXIF metadata:\n{exif_summary}"
-        )
-        response = await _get_llm().ainvoke(
-            [SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)]
-        )
+        prompt = f"Product listing:\n{state['cleaned_content'][:6_000]}\n\nEXIF metadata:\n{exif_summary}"
+        response = await _get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
 
         return {"skill_results": [f"[exif_check]\n{response.content}"]}

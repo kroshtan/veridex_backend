@@ -1,4 +1,4 @@
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, CompiledStateGraph, StateGraph
 from langgraph.types import Send
 
 from veridex.graph.nodes import classify_node, early_exit_node, judge_node, preprocess_node
@@ -9,8 +9,8 @@ from veridex.graph.skills.exif_check import ExifCheckSkill
 from veridex.graph.skills.html_source_signals import HtmlSourceSignalsSkill
 from veridex.graph.skills.page_content import PageContentSkill
 from veridex.graph.skills.reddit_brand import RedditBrandSkill
-from veridex.graph.skills.review_integrity import ReviewIntegritySkill
 from veridex.graph.skills.reverse_image_search import ReverseImageSearchSkill
+from veridex.graph.skills.review_integrity import ReviewIntegritySkill
 from veridex.graph.state import AnalysisState
 
 # ── Skill registry ────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ SKILLS: list[Skill] = [
 ]
 
 
-def build_graph(skills: list[Skill] = SKILLS):  # type: ignore[assignment]
+def build_graph(skills: list[Skill] = SKILLS) -> CompiledStateGraph:
     """
     Compile the analysis graph.
 
