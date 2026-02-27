@@ -1,6 +1,8 @@
 from typing import Any
 
+import asyncpg
 from fastapi import FastAPI
+from langgraph import CompiledStateGraph
 
 
 class VeridexAPI(FastAPI):
@@ -9,4 +11,5 @@ class VeridexAPI(FastAPI):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the Veridex API application."""
         super().__init__(*args, **kwargs)
-        self.graph: Any | None = None  # CompiledStateGraph, set during lifespan
+        self.graph: CompiledStateGraph | None = None  # set during lifespan
+        self.db_pool: asyncpg.Pool | None = None  # set during lifespan

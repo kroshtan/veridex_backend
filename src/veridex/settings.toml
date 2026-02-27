@@ -1,6 +1,8 @@
 [default]
 logging_level = "DEBUG"
 reddit_user_agent = "veridex/1.0"
+postgres_uri = "placeholder"
+free_daily_limit = 5
 
 [development]
 

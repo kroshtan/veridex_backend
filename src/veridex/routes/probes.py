@@ -1,17 +1,10 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
 
 from veridex import __version__
+from veridex.schemas.responses import Healthy
 
 router = APIRouter(prefix="/v1/health", tags=["Health"])
-
-
-class Healthy(BaseModel):
-    """Response schema for the health check endpoint."""
-
-    status: str = Field(default="healthy", description="The status of the health check")
-    version: str = Field(description="The version of the API", default=__version__)
 
 
 @router.get("", response_model=Healthy)

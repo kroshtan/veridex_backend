@@ -9,6 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from veridex import __version__
 from veridex.api import VeridexAPI
+from veridex.db import create_pool, init_db
 from veridex.graph import SKILLS, build_graph
 from veridex.middleware import create_process_time_middleware
 from veridex.routes import router
@@ -19,10 +20,13 @@ logger = structlog.get_logger("veridex")
 
 @asynccontextmanager
 async def lifespan(api: VeridexAPI) -> AsyncGenerator[None, None]:
-    """Build the analysis graph and store it on the app for the duration of its life."""
+    """Build the analysis graph and open the DB pool for the duration of the app's life."""
     logger.info("Veridex backend service starting")
     api.graph = build_graph(SKILLS)
+    api.db_pool = await create_pool()
+    await init_db(api.db_pool)
     yield
+    await api.db_pool.close()
     logger.info("Veridex backend service shutting down")
 
 
@@ -36,8 +40,8 @@ app = VeridexAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["POST"],
-    allow_headers=["Content-Type"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Add general middleware for all requests
