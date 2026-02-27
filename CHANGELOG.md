@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0](https://github.com/VeridexAI/veridex_backend/compare/0.1.1...0.2.0) (2026-02-27)
+
+### Features
+
+* add account access from web portal ([35cab30](https://github.com/VeridexAI/veridex_backend/commit/35cab304728474ef49a0608cd4e7c005ada5f1af))
+
 ## [0.1.1](https://github.com/VeridexAI/veridex_backend/compare/0.1.0...0.1.1) (2026-02-27)
 
 ## [0.1.0](https://github.com/VeridexAI/veridex_backend/compare/0.0.1...0.1.0) (2026-02-26)
