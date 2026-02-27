@@ -1,4 +1,4 @@
-from langgraph.graph import END, CompiledStateGraph, StateGraph
+from langgraph.graph import END, CompiledGraph, StateGraph
 from langgraph.types import Send
 
 from veridex.graph.nodes import classify_node, early_exit_node, judge_node, preprocess_node
@@ -27,7 +27,7 @@ SKILLS: list[Skill] = [
 ]
 
 
-def build_graph(skills: list[Skill] = SKILLS) -> CompiledStateGraph:
+def build_graph(skills: list[Skill] = SKILLS) -> CompiledGraph:
     """
     Compile the analysis graph.
 
