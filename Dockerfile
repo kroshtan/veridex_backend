@@ -7,14 +7,14 @@ WORKDIR /app
 
 # ── Dependencies (cached layer — only reruns when lock file changes) ──────────
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-cache
 
 # ── Playwright: install Chromium + all required system libraries ──────────────
 RUN uv run playwright install chromium --with-deps
 
 # ── Source code ───────────────────────────────────────────────────────────────
 COPY src/ ./src/
-RUN uv sync --frozen --no-dev
+RUN uv pip install --no-deps -e .
 
 EXPOSE 8080
 
