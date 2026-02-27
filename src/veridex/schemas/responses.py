@@ -24,3 +24,11 @@ class AccountResponse(BaseModel):
     username: str
     contact_email: str
     subscription_status: str
+
+
+class UsageResponse(BaseModel):
+    """Response body for daily usage information."""
+
+    used_today: int
+    daily_limit: int | None = None
+    remaining: int | None = None

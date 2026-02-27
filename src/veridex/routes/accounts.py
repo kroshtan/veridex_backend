@@ -4,9 +4,11 @@ import structlog
 from fastapi import APIRouter, Depends, Request
 
 from veridex.auth import verify_credentials
+from veridex.config import settings
+from veridex.db import count_analyses_today
 from veridex.schemas.errors import BadRequestError, NotFoundError
 from veridex.schemas.requests import CreateAccountRequest
-from veridex.schemas.responses import AccountResponse
+from veridex.schemas.responses import AccountResponse, UsageResponse
 
 logger = structlog.get_logger("veridex")
 
@@ -43,7 +45,32 @@ async def create_account(body: CreateAccountRequest, request: Request) -> Accoun
     return AccountResponse(**dict(row))
 
 
-@router.get("/me", response_model=AccountResponse)
+@router.get("/me/usage", response_model=UsageResponse)
+async def get_usage(request: Request, username: str = Depends(verify_credentials)) -> UsageResponse:
+    """
+    Return today's analysis usage for the authenticated user.
+
+    Free accounts have a daily limit configured in settings. Other tiers are unlimited.
+
+    :param request: The FastAPI request (used to access the DB pool).
+    :param username: The authenticated username (injected by verify_credentials).
+    :return: Used today, daily limit, and remaining count.
+    """
+    pool = request.app.db_pool
+    used_today = await count_analyses_today(pool, username)
+    subscription = await pool.fetchrow("SELECT subscription_status FROM accounts WHERE username = $1", username)
+    if subscription and subscription["subscription_status"] == "free":
+        limit: int = settings.free_daily_limit
+        remaining: int = max(0, limit - used_today)
+    else:
+        raise ValueError(
+            f"Unknown subscription status: {subscription['subscription_status']}"
+            if subscription
+            else "Account not found."
+        )
+    return UsageResponse(used_today=used_today, daily_limit=limit, remaining=remaining)
+
+
 async def get_me(request: Request, username: str = Depends(verify_credentials)) -> AccountResponse:
     """
     Return the authenticated user's account details.
