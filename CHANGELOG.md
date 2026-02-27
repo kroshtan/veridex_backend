@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1](https://github.com/VeridexAI/veridex_backend/compare/0.2.0...0.2.1) (2026-02-27)
+
+### Bug Fixes
+
+* Dockerfile properly installs project package ([136a719](https://github.com/VeridexAI/veridex_backend/commit/136a719a98050bb9e032c0a45178191732264cdb))
+
 ## [0.2.0](https://github.com/VeridexAI/veridex_backend/compare/0.1.1...0.2.0) (2026-02-27)
 
 ### Features
