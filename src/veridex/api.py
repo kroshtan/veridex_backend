@@ -2,7 +2,7 @@ from typing import Any
 
 import asyncpg
 from fastapi import FastAPI
-from langgraph import CompiledStateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 
 class VeridexAPI(FastAPI):
