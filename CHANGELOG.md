@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.3](https://github.com/VeridexAI/veridex_backend/compare/0.2.2...0.2.3) (2026-02-27)
+
+### Bug Fixes
+
+* Import error ([a8308df](https://github.com/VeridexAI/veridex_backend/commit/a8308dfa8dfbcef1b2aa151d73e96ad020374c41))
+
 ## [0.2.2](https://github.com/VeridexAI/veridex_backend/compare/0.2.1...0.2.2) (2026-02-27)
 
 ### Bug Fixes
