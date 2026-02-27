@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.2](https://github.com/VeridexAI/veridex_backend/compare/0.2.1...0.2.2) (2026-02-27)
+
+### Bug Fixes
+
+* Actually fix dockerfile ([6c0fd9c](https://github.com/VeridexAI/veridex_backend/commit/6c0fd9c5bad40305283e9635f15c72d0fa282c12))
+
 ## [0.2.1](https://github.com/VeridexAI/veridex_backend/compare/0.2.0...0.2.1) (2026-02-27)
 
 ### Bug Fixes
