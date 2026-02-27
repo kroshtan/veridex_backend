@@ -16,7 +16,6 @@ RUN uv run playwright install chromium --with-deps
 COPY src/ ./src/
 RUN uv sync --frozen --no-dev
 
-ENV PYTHONPATH=/app/src
 EXPOSE 8080
 
 CMD ["uv", "run", "uvicorn", "veridex.main:app", "--host", "0.0.0.0", "--port", "8080"]
