@@ -71,6 +71,7 @@ async def get_usage(request: Request, username: str = Depends(verify_credentials
     return UsageResponse(used_today=used_today, daily_limit=limit, remaining=remaining)
 
 
+@router.get("/me", response_model=AccountResponse)
 async def get_me(request: Request, username: str = Depends(verify_credentials)) -> AccountResponse:
     """
     Return the authenticated user's account details.
