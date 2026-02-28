@@ -1,7 +1,7 @@
 [project]
 name = "veridex"
 description = "API for webpage truth checks"
-version = "0.2.4"
+version = "0.2.5"
 authors = [
     { name = "Floris van Beers", email = "freelancing@kroshtan.com" },
 ]
