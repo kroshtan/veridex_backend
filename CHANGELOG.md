@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/VeridexAI/veridex_backend/compare/0.2.3...0.2.4) (2026-02-27)
+
+### Bug Fixes
+
+* imports ([ed52b51](https://github.com/VeridexAI/veridex_backend/commit/ed52b5117c8fd4d8c06cb347113e253850bad920))
+* imports ([383a927](https://github.com/VeridexAI/veridex_backend/commit/383a927cffae3dab886f8166fbe61b03becf118c))
+
 ## [0.2.3](https://github.com/VeridexAI/veridex_backend/compare/0.2.2...0.2.3) (2026-02-27)
 
 ### Bug Fixes
