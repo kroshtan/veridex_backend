@@ -19,7 +19,7 @@ async def verify_credentials(
     """
     row = await request.app.db_pool.fetchrow(
         "SELECT hashed_password FROM accounts WHERE username = $1",
-        credentials.username,
+        credentials.username.lower(),
     )
     if row is None or not bcrypt.checkpw(credentials.password.encode(), row["hashed_password"].encode()):
         raise HTTPException(
@@ -27,4 +27,4 @@ async def verify_credentials(
             detail="Invalid credentials.",
             headers={"WWW-Authenticate": "Basic"},
         )
-    return credentials.username  # type: ignore[no-any-return]
+    return credentials.username.lower()  # type: ignore[no-any-return]

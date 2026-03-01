@@ -5,7 +5,7 @@ from veridex.config import settings
 _CREATE_ACCOUNTS_TABLE = """
     CREATE TABLE IF NOT EXISTS accounts (
         id                  SERIAL PRIMARY KEY,
-        username            TEXT UNIQUE NOT NULL,
+        username            TEXT UNIQUE NOT NULL CHECK (username = LOWER(username)),
         hashed_password     TEXT NOT NULL,
         contact_email       TEXT UNIQUE NOT NULL,
         subscription_status TEXT NOT NULL DEFAULT 'free',
