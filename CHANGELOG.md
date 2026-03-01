@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0](https://github.com/VeridexAI/veridex_backend/compare/0.3.0...0.4.0) (2026-03-01)
+
+### Features
+
+* Add paddle for payment ([37ca493](https://github.com/VeridexAI/veridex_backend/commit/37ca4938096c0cdd26e8ae865c9a091a6b36d7d6))
+
 ## [0.3.0](https://github.com/VeridexAI/veridex_backend/compare/0.2.5...0.3.0) (2026-03-01)
 
 ### Features
