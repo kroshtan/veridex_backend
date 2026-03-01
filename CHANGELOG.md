@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0](https://github.com/VeridexAI/veridex_backend/compare/0.2.5...0.3.0) (2026-03-01)
+
+### Features
+
+* protect signup endpoint + lowercase usernames ([cdc8ae9](https://github.com/VeridexAI/veridex_backend/commit/cdc8ae971a3cc4e5e5633a7d616f892002a50acc))
+
 ## [0.2.5](https://github.com/VeridexAI/veridex_backend/compare/0.2.4...0.2.5) (2026-02-28)
 
 ## [0.2.4](https://github.com/VeridexAI/veridex_backend/compare/0.2.3...0.2.4) (2026-02-27)
