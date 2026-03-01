@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.2.5](https://github.com/VeridexAI/veridex_backend/compare/0.2.4...0.2.5) (2026-02-28)
+
 ## [0.2.4](https://github.com/VeridexAI/veridex_backend/compare/0.2.3...0.2.4) (2026-02-27)
 
 ### Bug Fixes
