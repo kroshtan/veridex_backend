@@ -4,6 +4,10 @@ reddit_user_agent = "veridex/1.0"
 postgres_uri = "placeholder"
 signup_secret = ""
 free_daily_limit = 5
+premium_daily_limit = 25
+paddle_webhook_secret = ""
+reddit_client_id = ""
+reddit_client_secret = ""
 
 [development]
 

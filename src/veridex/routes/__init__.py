@@ -2,11 +2,13 @@ from fastapi import APIRouter
 
 from veridex.routes.accounts import router as accounts_router
 from veridex.routes.analyze import router as analyze_router
+from veridex.routes.paddle import router as paddle_router
 from veridex.routes.probes import router as probes_router
 
 router = APIRouter()
 router.include_router(accounts_router)
 router.include_router(analyze_router)
 router.include_router(probes_router)
+router.include_router(paddle_router)
 
 __all__ = ["router"]

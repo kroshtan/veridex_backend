@@ -9,7 +9,8 @@ from veridex.graph.skills.domain_age import DomainAgeSkill
 from veridex.graph.skills.exif_check import ExifCheckSkill
 from veridex.graph.skills.html_source_signals import HtmlSourceSignalsSkill
 from veridex.graph.skills.page_content import PageContentSkill
-from veridex.graph.skills.reddit_brand import RedditBrandSkill
+
+# from veridex.graph.skills.reddit_brand import RedditBrandSkill  # temporarily disabled
 from veridex.graph.skills.reverse_image_search import ReverseImageSearchSkill
 from veridex.graph.skills.review_integrity import ReviewIntegritySkill
 from veridex.graph.state import AnalysisState
@@ -19,7 +20,7 @@ from veridex.graph.state import AnalysisState
 SKILLS: list[Skill] = [
     PageContentSkill(),
     ReverseImageSearchSkill(),
-    RedditBrandSkill(),
+    # RedditBrandSkill(),  # temporarily disabled
     ExifCheckSkill(),
     HtmlSourceSignalsSkill(),
     DomainAgeSkill(),
