@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.0](https://github.com/VeridexAI/veridex_backend/compare/0.4.0...0.5.0) (2026-03-02)
+
+### Features
+
+* add admin functionality ([a6e58ff](https://github.com/VeridexAI/veridex_backend/commit/a6e58ff2c39724df1d4cb335c57878d22a28d46a))
+
 ## [0.4.0](https://github.com/VeridexAI/veridex_backend/compare/0.3.0...0.4.0) (2026-03-01)
 
 ### Features
