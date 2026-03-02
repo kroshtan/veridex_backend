@@ -72,16 +72,17 @@ async def get_usage(request: Request, username: str = Depends(verify_credentials
     used_today = await count_analyses_today(pool, username)
     subscription = await pool.fetchrow("SELECT subscription_status FROM accounts WHERE username = $1", username)
     sub_status = subscription["subscription_status"] if subscription else None
+    if sub_status == "admin":
+        return UsageResponse(used_today=used_today, daily_limit=None, remaining=None)
     if sub_status == "free":
         limit: int = settings.free_daily_limit
-        remaining: int = max(0, limit - used_today)
     elif sub_status == "premium":
         limit = settings.premium_daily_limit
-        remaining = max(0, limit - used_today)
     else:
         raise ValueError(
             f"Unknown subscription status: {sub_status}" if sub_status is not None else "Account not found."
         )
+    remaining: int = max(0, limit - used_today)
     return UsageResponse(used_today=used_today, daily_limit=limit, remaining=remaining)
 
 

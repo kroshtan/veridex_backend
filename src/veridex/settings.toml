@@ -6,6 +6,8 @@ signup_secret = ""
 free_daily_limit = 5
 premium_daily_limit = 25
 paddle_webhook_secret = ""
+paddle_api_key = ""
+paddle_environment = "production"
 reddit_client_id = ""
 reddit_client_secret = ""
 

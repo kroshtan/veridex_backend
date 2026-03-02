@@ -16,9 +16,10 @@ async def verify_credentials(
     :param credentials: The HTTP Basic Auth credentials.
     :return: The authenticated username.
     :raises HTTPException: 401 if credentials are missing or invalid.
+    :raises HTTPException: 403 if the account is blocked.
     """
     row = await request.app.db_pool.fetchrow(
-        "SELECT hashed_password FROM accounts WHERE username = $1",
+        "SELECT hashed_password, subscription_status FROM accounts WHERE username = $1",
         credentials.username.lower(),
     )
     if row is None or not bcrypt.checkpw(credentials.password.encode(), row["hashed_password"].encode()):
@@ -27,4 +28,21 @@ async def verify_credentials(
             detail="Invalid credentials.",
             headers={"WWW-Authenticate": "Basic"},
         )
+    if row["subscription_status"] == "blocked":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is blocked.")
     return credentials.username.lower()  # type: ignore[no-any-return]
+
+
+async def require_admin(
+    request: Request,
+    username: str = Depends(verify_credentials),
+) -> str:
+    """
+    Extend verify_credentials to also require admin tier.
+
+    :raises HTTPException: 403 if the account is not an admin.
+    """
+    row = await request.app.db_pool.fetchrow("SELECT subscription_status FROM accounts WHERE username = $1", username)
+    if not row or row["subscription_status"] != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
+    return username

@@ -4,12 +4,13 @@ from veridex.config import settings
 
 _CREATE_ACCOUNTS_TABLE = """
     CREATE TABLE IF NOT EXISTS accounts (
-        id                  SERIAL PRIMARY KEY,
-        username            TEXT UNIQUE NOT NULL CHECK (username = LOWER(username)),
-        hashed_password     TEXT NOT NULL,
-        contact_email       TEXT UNIQUE NOT NULL,
-        subscription_status TEXT NOT NULL DEFAULT 'free',
-        created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        id                      SERIAL PRIMARY KEY,
+        username                TEXT UNIQUE NOT NULL CHECK (username = LOWER(username)),
+        hashed_password         TEXT NOT NULL,
+        contact_email           TEXT UNIQUE NOT NULL,
+        subscription_status     TEXT NOT NULL DEFAULT 'free',
+        paddle_subscription_id  TEXT,
+        created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
 """
 
@@ -35,6 +36,8 @@ async def init_db(pool: asyncpg.Pool) -> None:
     async with pool.acquire() as conn:
         await conn.execute(_CREATE_ACCOUNTS_TABLE)
         await conn.execute(_CREATE_ANALYZE_LOG_TABLE)
+        # Migrations
+        await conn.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS paddle_subscription_id TEXT")
 
 
 async def get_subscription_status(pool: asyncpg.Pool, username: str) -> str:

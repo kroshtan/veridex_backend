@@ -84,14 +84,15 @@ async def paddle_webhook(
 
     if event_type == "subscription.activated":
         await pool.execute(
-            "UPDATE accounts SET subscription_status = 'premium' WHERE username = $1",
+            "UPDATE accounts SET subscription_status = 'premium', paddle_subscription_id = $2 WHERE username = $1",
             username,
+            data.get("id"),
         )
         logger.info("subscription_upgraded", username=username)
 
     elif event_type == "subscription.canceled":
         await pool.execute(
-            "UPDATE accounts SET subscription_status = 'free' WHERE username = $1",
+            "UPDATE accounts SET subscription_status = 'free', paddle_subscription_id = NULL WHERE username = $1",
             username,
         )
         logger.info("subscription_downgraded", username=username)

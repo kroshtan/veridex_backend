@@ -40,12 +40,13 @@ async def analyze_page(
 
     pool = request.app.db_pool
     subscription = await get_subscription_status(pool, username)
-    if subscription == "free":
+    if subscription in ("free", "premium"):
+        limit = settings.free_daily_limit if subscription == "free" else settings.premium_daily_limit
         used_today = await count_analyses_today(pool, username)
-        if used_today >= settings.free_daily_limit:
+        if used_today >= limit:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Daily limit of {settings.free_daily_limit} analyses reached for free accounts.",
+                detail=f"Daily limit of {limit} analyses reached.",
             )
 
     try:
