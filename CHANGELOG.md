@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.5.1](https://github.com/kroshtan/veridex_backend/compare/0.5.0...0.5.1) (2026-09-26)
+
 ## [0.5.0](https://github.com/VeridexAI/veridex_backend/compare/0.4.0...0.5.0) (2026-03-02)
 
 ### Features
