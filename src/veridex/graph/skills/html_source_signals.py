@@ -1,13 +1,11 @@
 import re
-from functools import cache
 
 from bs4 import BeautifulSoup, Comment
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from veridex.config import settings
 from veridex.graph.skills import Skill
 from veridex.graph.state import AnalysisState
+from veridex.llm import get_llm
 
 # ── Hard-coded signal patterns ────────────────────────────────────────────────
 # Each entry is (compiled_regex, human_readable_label).
@@ -46,11 +44,6 @@ Look for soft dropship signals such as:
 
 Be concise and factual. Report only genuine signals — do not speculate without evidence.\
 """
-
-
-@cache
-def _get_llm() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key)
 
 
 def _build_fingerprint(html: str) -> str:
@@ -112,7 +105,7 @@ class HtmlSourceSignalsSkill(Skill):
         fingerprint = _build_fingerprint(html)
         llm_finding = ""
         if fingerprint.strip():
-            response = await _get_llm().ainvoke(
+            response = await get_llm().ainvoke(
                 [SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=fingerprint)]
             )
             llm_finding = str(response.content)

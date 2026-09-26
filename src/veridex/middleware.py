@@ -15,20 +15,15 @@ def create_process_time_middleware(logger: structlog.stdlib.BoundLogger) -> Call
 
     async def add_process_time_header(request: Request, call_next: Callable) -> Response:
         """
-        Add process time header to the response header.
-
-        Middleware function for all requests to the API adding the process time to the response header.
-        This is used for logging purposes to see how long the request took to process. Additionally, it
-        checks if the request is still expected by the user, and logs a warning if the request was disconnected.
+        Add an ``x-process-time`` header and log requests whose client disconnected.
 
         :param request: The request object.
         :param call_next: The next middleware or route handler.
         :return: The response object.
         """
-
         # Start the timer and forward the request to the next middleware or route handler
         start_time = perf_counter()
-        response = await call_next(request)
+        response: Response = await call_next(request)
 
         # Add the process time to the response header
         process_time = round(perf_counter() - start_time, 3)

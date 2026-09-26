@@ -1,11 +1,8 @@
-from functools import cache
-
 from bs4 import BeautifulSoup
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from veridex.config import settings
+from veridex.llm import get_structured_llm
 
 _MAX_CANDIDATE_URLS = 50
 
@@ -21,13 +18,6 @@ class _ProductImageOutput(BaseModel):
     urls: list[str] = Field(description="Up to 3 image URLs most likely to be the main product images.")
 
 
-@cache
-def _get_image_select_llm() -> ChatOpenAI:
-    return ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
-    ).with_structured_output(_ProductImageOutput)
-
-
 def extract_image_urls(html: str) -> list[str]:
     """
     Return deduplicated absolute HTTP image URLs from raw HTML.
@@ -39,8 +29,8 @@ def extract_image_urls(html: str) -> list[str]:
     seen: set[str] = set()
     urls: list[str] = []
     for img in soup.find_all("img"):
-        src: str | None = img.get("src") or img.get("data-src") or img.get("data-lazy-src")
-        if src and src.startswith("http") and not src.lower().endswith(".svg") and src not in seen:
+        src = img.get("src") or img.get("data-src") or img.get("data-lazy-src")
+        if isinstance(src, str) and src.startswith("http") and not src.lower().endswith(".svg") and src not in seen:
             seen.add(src)
             urls.append(src)
     return urls
@@ -59,7 +49,7 @@ async def select_product_images(all_urls: list[str], max_images: int = 3) -> lis
     if not all_urls:
         return []
     url_list = "\n".join(all_urls[:_MAX_CANDIDATE_URLS])
-    output: _ProductImageOutput = await _get_image_select_llm().ainvoke(
+    output: _ProductImageOutput = await get_structured_llm(_ProductImageOutput).ainvoke(
         [
             SystemMessage(content=_IMAGE_SYSTEM),
             HumanMessage(content=f"Image URLs:\n{url_list}"),

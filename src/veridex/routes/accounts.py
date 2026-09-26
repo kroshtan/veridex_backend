@@ -1,18 +1,19 @@
 import asyncpg
-import bcrypt
 import structlog
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, Request
 
-from veridex.auth import verify_credentials
+from veridex.auth import Account, hash_password, verify_credentials
 from veridex.config import settings
 from veridex.db import count_analyses_today
-from veridex.schemas.errors import BadRequestError, NotFoundError
+from veridex.schemas.errors import BadRequestError, ForbiddenError, NotFoundError
 from veridex.schemas.requests import CreateAccountRequest
 from veridex.schemas.responses import AccountResponse, UsageResponse
 
 logger = structlog.get_logger("veridex")
 
 router = APIRouter(prefix="/v1/accounts", tags=["Accounts"])
+
+_ACCOUNT_COLUMNS = "id, username, contact_email, subscription_status"
 
 
 @router.post("", response_model=AccountResponse, status_code=201)
@@ -34,20 +35,18 @@ async def create_account(
     :param request: The FastAPI request (used to access the DB pool).
     :param x_signup_key: Server-to-server secret key.
     :return: The created account (without password).
-    :raises HTTPException: 403 if the signup key is missing or wrong.
+    :raises ForbiddenError: If the signup key is missing or wrong.
     :raises BadRequestError: If the username or email is already registered.
     """
     if not settings.signup_secret or x_signup_key != settings.signup_secret:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signup key.")
-    hashed_password = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+        raise ForbiddenError("Invalid signup key.")
     username = body.username.lower()
     try:
         row = await request.app.db_pool.fetchrow(
             "INSERT INTO accounts (username, hashed_password, contact_email) "
-            "VALUES ($1, $2, $3) "
-            "RETURNING id, username, contact_email, subscription_status",
+            f"VALUES ($1, $2, $3) RETURNING {_ACCOUNT_COLUMNS}",
             username,
-            hashed_password,
+            await hash_password(body.password),
             body.contact_email,
         )
     except asyncpg.UniqueViolationError as exc:
@@ -58,47 +57,35 @@ async def create_account(
 
 
 @router.get("/me/usage", response_model=UsageResponse)
-async def get_usage(request: Request, username: str = Depends(verify_credentials)) -> UsageResponse:
+async def get_usage(request: Request, account: Account = Depends(verify_credentials)) -> UsageResponse:
     """
     Return today's analysis usage for the authenticated user.
 
-    Free accounts have a daily limit configured in settings. Other tiers are unlimited.
+    Free and premium accounts have daily limits configured in settings; admins are unlimited.
 
     :param request: The FastAPI request (used to access the DB pool).
-    :param username: The authenticated username (injected by verify_credentials).
+    :param account: The authenticated account (injected by verify_credentials).
     :return: Used today, daily limit, and remaining count.
     """
-    pool = request.app.db_pool
-    used_today = await count_analyses_today(pool, username)
-    subscription = await pool.fetchrow("SELECT subscription_status FROM accounts WHERE username = $1", username)
-    sub_status = subscription["subscription_status"] if subscription else None
-    if sub_status == "admin":
-        return UsageResponse(used_today=used_today, daily_limit=None, remaining=None)
-    if sub_status == "free":
-        limit: int = settings.free_daily_limit
-    elif sub_status == "premium":
-        limit = settings.premium_daily_limit
-    else:
-        raise ValueError(
-            f"Unknown subscription status: {sub_status}" if sub_status is not None else "Account not found."
-        )
-    remaining: int = max(0, limit - used_today)
-    return UsageResponse(used_today=used_today, daily_limit=limit, remaining=remaining)
+    used_today = await count_analyses_today(request.app.db_pool, account.username)
+    limit = account.daily_limit
+    if limit is None:
+        return UsageResponse(used_today=used_today)
+    return UsageResponse(used_today=used_today, daily_limit=limit, remaining=max(0, limit - used_today))
 
 
 @router.get("/me", response_model=AccountResponse)
-async def get_me(request: Request, username: str = Depends(verify_credentials)) -> AccountResponse:
+async def get_me(request: Request, account: Account = Depends(verify_credentials)) -> AccountResponse:
     """
     Return the authenticated user's account details.
 
     :param request: The FastAPI request (used to access the DB pool).
-    :param username: The authenticated username (injected by verify_credentials).
+    :param account: The authenticated account (injected by verify_credentials).
     :return: The account details for the current user.
     :raises NotFoundError: If the account no longer exists.
     """
     row = await request.app.db_pool.fetchrow(
-        "SELECT id, username, contact_email, subscription_status FROM accounts WHERE username = $1",
-        username,
+        f"SELECT {_ACCOUNT_COLUMNS} FROM accounts WHERE username = $1", account.username
     )
     if row is None:
         raise NotFoundError("Account not found.")

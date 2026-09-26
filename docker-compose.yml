@@ -1,7 +1,29 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: veridex
+      POSTGRES_PASSWORD: veridex
+      POSTGRES_DB: veridex
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "veridex"]
+      interval: 2s
+      retries: 15
+
   backend:
     build: .
     ports:
       - "8080:8080"
-    volumes:
-      - ./src/veridex/.secrets.toml:/app/src/veridex/.secrets.toml:ro
+    env_file: .env
+    environment:
+      VERIDEX_POSTGRES_URI: postgresql://veridex:veridex@postgres:5432/veridex
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

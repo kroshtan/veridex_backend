@@ -1,13 +1,14 @@
 import contextlib
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
+from playwright.async_api import Browser, async_playwright
 from playwright_stealth import Stealth
 
 from veridex.graph.skills import Skill
 from veridex.graph.skills._image_utils import extract_image_urls, select_product_images
 from veridex.graph.state import AnalysisState
+from veridex.net import hostname
 
 _MAX_IMAGES = 3
 _BROWSER_TIMEOUT = 20_000  # ms
@@ -42,56 +43,49 @@ _DROPSHIP_DOMAINS: frozenset[str] = frozenset(
 )
 
 
-def _extract_domain(url: str) -> str:
-    """
-    Return the registered domain (without www.) from a URL.
-
-    :param url: A full URL string.
-    :return: Domain string, e.g. ``"temu.com"``.
-    """
-    try:
-        return urlparse(url).netloc.lower().removeprefix("www.")
-    except Exception:  # noqa: BLE001
-        return ""
-
-
 def _is_google_domain(domain: str) -> bool:
     return any(domain == g or domain.endswith(f".{g}") for g in _GOOGLE_DOMAINS)
 
 
-async def _reverse_image_search(image_url: str) -> list[str]:
+def _result_domains(html: str) -> list[str]:
     """
-    Reverse-image-search via Google using a stealth Playwright browser.
+    Collect outbound, non-Google link domains from a Google results page.
 
-    Navigates to Google's searchbyimage URL, waits for results, then collects
-    all outbound link domains from the results page.
-
-    :param image_url: Publicly accessible URL of the image to search for.
-    :return: List of non-Google domain strings found in the results.
+    :param html: HTML of the results page.
+    :return: Domains in document order (duplicates kept, one per link).
     """
-    search_url = f"https://www.google.com/searchbyimage?image_url={quote(image_url)}&safe=off"
-
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
-        try:
-            page = await browser.new_page()
-            await Stealth().apply_stealth_async(page)
-            await page.goto(search_url, wait_until="domcontentloaded", timeout=_BROWSER_TIMEOUT)
-            # Allow lazy-loaded results to settle
-            with contextlib.suppress(Exception):
-                await page.wait_for_selector("#search", timeout=5_000)
-
-            html = await page.content()
-        finally:
-            await browser.close()
-
     soup = BeautifulSoup(html, "html.parser")
     domains: list[str] = []
     for a in soup.find_all("a", href=True):
-        domain = _extract_domain(a["href"])
+        href = a["href"]
+        if not isinstance(href, str) or not href.startswith("http"):
+            continue
+        domain = hostname(href)
         if domain and not _is_google_domain(domain):
             domains.append(domain)
     return domains
+
+
+async def _reverse_image_search(browser: Browser, image_url: str) -> list[str]:
+    """
+    Reverse-image-search a single image via Google in a stealth browser page.
+
+    :param browser: A running Playwright browser.
+    :param image_url: Publicly accessible URL of the image to search for.
+    :return: Non-Google domains linked from the results page.
+    """
+    search_url = f"https://www.google.com/searchbyimage?image_url={quote(image_url)}&safe=off"
+    page = await browser.new_page()
+    try:
+        await Stealth().apply_stealth_async(page)
+        await page.goto(search_url, wait_until="domcontentloaded", timeout=_BROWSER_TIMEOUT)
+        # Allow lazy-loaded results to settle
+        with contextlib.suppress(Exception):
+            await page.wait_for_selector("#search", timeout=5_000)
+        html = await page.content()
+    finally:
+        await page.close()
+    return _result_domains(html)
 
 
 class ReverseImageSearchSkill(Skill):
@@ -116,11 +110,22 @@ class ReverseImageSearchSkill(Skill):
         # Step 2 – ask LLM to pick the product images
         product_urls = await select_product_images(all_urls, max_images=_MAX_IMAGES)
 
-        # Step 3 – reverse-image-search each product image
+        # Step 3 – reverse-image-search each product image, sharing one browser
         all_domains: list[str] = []
-        for url in product_urls:
-            with contextlib.suppress(Exception):
-                all_domains.extend(await _reverse_image_search(url))
+        failed = 0
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            try:
+                for url in product_urls:
+                    try:
+                        all_domains.extend(await _reverse_image_search(browser, url))
+                    except Exception:  # noqa: BLE001
+                        failed += 1
+            finally:
+                await browser.close()
+
+        if failed == len(product_urls):
+            return {"skill_results": ["[reverse_image_search]\nReverse image search failed; no results available."]}
 
         total_hits = len(all_domains)
         found_dropship = sorted({d for d in all_domains if d in _DROPSHIP_DOMAINS})

@@ -1,11 +1,8 @@
-from functools import cache
-
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from veridex.config import settings
 from veridex.graph.skills import Skill
 from veridex.graph.state import AnalysisState
+from veridex.llm import get_llm
 
 _MAX_CHARS = 40_000
 
@@ -23,11 +20,6 @@ Provide a concise, factual summary of your findings — no score yet, just evide
 """
 
 
-@cache
-def _get_llm() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key)
-
-
 class PageContentSkill(Skill):
     """Baseline skill: LLM analysis of the cleaned page text."""
 
@@ -43,5 +35,5 @@ class PageContentSkill(Skill):
         :return: Skill findings appended to ``skill_results``.
         """
         content = state["cleaned_content"][:_MAX_CHARS]
-        response = await _get_llm().ainvoke([SystemMessage(content=_SYSTEM), HumanMessage(content=content)])
+        response = await get_llm().ainvoke([SystemMessage(content=_SYSTEM), HumanMessage(content=content)])
         return {"skill_results": [f"[page_content]\n{response.content}"]}

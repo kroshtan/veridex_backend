@@ -26,6 +26,11 @@ _CREATE_ANALYZE_LOG_TABLE = """
 """
 
 
+_CREATE_ANALYZE_LOG_INDEX = """
+    CREATE INDEX IF NOT EXISTS analyze_log_username_analyzed_at_idx ON analyze_log (username, analyzed_at)
+"""
+
+
 async def create_pool() -> asyncpg.Pool:
     """Create and return an asyncpg connection pool."""
     return await asyncpg.create_pool(settings.postgres_uri)
@@ -38,18 +43,7 @@ async def init_db(pool: asyncpg.Pool) -> None:
         await conn.execute(_CREATE_ANALYZE_LOG_TABLE)
         # Migrations
         await conn.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS paddle_subscription_id TEXT")
-
-
-async def get_subscription_status(pool: asyncpg.Pool, username: str) -> str:
-    """
-    Return the subscription_status for the given username.
-
-    :param pool: The asyncpg connection pool.
-    :param username: The username to look up.
-    :return: The subscription status string (e.g. ``'free'``).
-    """
-    row = await pool.fetchrow("SELECT subscription_status FROM accounts WHERE username = $1", username)
-    return str(row["subscription_status"])
+        await conn.execute(_CREATE_ANALYZE_LOG_INDEX)
 
 
 async def count_analyses_today(pool: asyncpg.Pool, username: str) -> int:
@@ -61,7 +55,8 @@ async def count_analyses_today(pool: asyncpg.Pool, username: str) -> int:
     :return: Number of analyze_log rows for the user today.
     """
     row = await pool.fetchrow(
-        "SELECT COUNT(*) FROM analyze_log WHERE username = $1 AND analyzed_at >= CURRENT_DATE",
+        "SELECT COUNT(*) FROM analyze_log "
+        "WHERE username = $1 AND analyzed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'",
         username,
     )
     return int(row["count"])
@@ -83,4 +78,26 @@ async def log_analyze(pool: asyncpg.Pool, username: str, url: str, score: int, e
         url,
         score,
         explanation,
+    )
+
+
+async def set_subscription(
+    pool: asyncpg.Pool,
+    username: str,
+    subscription_status: str,
+    paddle_subscription_id: str | None = None,
+) -> None:
+    """
+    Set an account's subscription tier and linked Paddle subscription.
+
+    :param pool: The asyncpg connection pool.
+    :param username: The (lowercase) account username.
+    :param subscription_status: The new tier.
+    :param paddle_subscription_id: The Paddle subscription backing the tier, if any.
+    """
+    await pool.execute(
+        "UPDATE accounts SET subscription_status = $2, paddle_subscription_id = $3 WHERE username = $1",
+        username,
+        subscription_status,
+        paddle_subscription_id,
     )

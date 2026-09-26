@@ -1,13 +1,11 @@
-from functools import cache
 from typing import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from veridex.config import settings
 from veridex.graph.state import AnalysisState, PageType
 from veridex.html_cleaner import clean_html
+from veridex.llm import get_structured_llm
 
 
 def preprocess_node(state: AnalysisState) -> dict:
@@ -41,13 +39,6 @@ class _ClassifyOutput(BaseModel):
     reasoning: str = Field(description="One sentence explaining the classification.")
 
 
-@cache
-def _get_classify_llm() -> ChatOpenAI:
-    return ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
-    ).with_structured_output(_ClassifyOutput)
-
-
 _CLASSIFY_SYSTEM = """\
 You are a web-page classifier. Given the text of a page, determine:
 1. Whether it is about a product or service.
@@ -74,7 +65,10 @@ async def classify_node(state: AnalysisState) -> dict:
     :param state: Current graph state; uses ``cleaned_content``.
     :return: ``page_type`` and a classification entry in ``skill_results``.
     """
-    output: _ClassifyOutput = await _get_classify_llm().ainvoke(
+    if not state["cleaned_content"]:
+        return {"page_type": "non_product", "skill_results": ["[classify]\nPage type: non_product\nPage has no text."]}
+
+    output: _ClassifyOutput = await get_structured_llm(_ClassifyOutput).ainvoke(
         [
             SystemMessage(content=_CLASSIFY_SYSTEM),
             HumanMessage(content=state["cleaned_content"][:8_000]),
@@ -91,8 +85,8 @@ async def classify_node(state: AnalysisState) -> dict:
     return {"page_type": page_type, "skill_results": [finding]}
 
 
-_EARLY_EXIT_EXPLANATIONS: dict[str, str] = {
-    "article": "Not Implemented",
+_EARLY_EXIT_EXPLANATIONS: dict[PageType, str] = {
+    "article": "Articles are not supported yet",
     "non_product": "No product referenced on this page",
 }
 
@@ -101,27 +95,19 @@ def early_exit_node(state: AnalysisState) -> dict:
     """
     Return a sentinel score for pages that cannot be analysed yet.
 
-    Called when the page is not an aggregate marketplace listing.
-    Storefronts and articles return ``-1 / "Not Implemented"``; pages with no
-    product at all return ``-1 / "No product referenced on this page"``.
+    Called for articles and pages that are not about a product; marketplace
+    listings and storefronts go through the skills instead.
 
     :param state: Current graph state; uses ``page_type``.
     :return: ``score`` of ``-1`` and a short ``explanation``.
     """
-    explanation = _EARLY_EXIT_EXPLANATIONS.get(state["page_type"], "Not Implemented")
+    explanation = _EARLY_EXIT_EXPLANATIONS.get(state["page_type"], "Page type is not supported")
     return {"score": -1, "explanation": explanation}
 
 
 class _JudgeOutput(BaseModel):
     score: int = Field(ge=0, le=100, description="0 = scam, 100 = fully legitimate")
     explanation: str = Field(description="One sentence explaining the score")
-
-
-@cache
-def _get_judge_llm() -> ChatOpenAI:
-    return ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
-    ).with_structured_output(_JudgeOutput)
 
 
 _JUDGE_SYSTEM = """\
@@ -139,7 +125,7 @@ async def judge_node(state: AnalysisState) -> dict:
     :return: ``score`` and ``explanation``.
     """
     findings = "\n\n".join(state["skill_results"])
-    output: _JudgeOutput = await _get_judge_llm().ainvoke(
+    output: _JudgeOutput = await get_structured_llm(_JudgeOutput).ainvoke(
         [
             SystemMessage(content=_JUDGE_SYSTEM),
             HumanMessage(content=f"Skill findings:\n{findings}"),

@@ -1,16 +1,14 @@
 import asyncio
 import contextlib
 from datetime import UTC, datetime
-from functools import cache
-from urllib.parse import urlparse
 
 import whois
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from veridex.config import settings
 from veridex.graph.skills import Skill
 from veridex.graph.state import AnalysisState
+from veridex.llm import get_llm
+from veridex.net import hostname
 
 _WHOIS_TIMEOUT = 15  # seconds passed to asyncio.wait_for
 
@@ -27,25 +25,6 @@ Given WHOIS / registry metadata, look for:
 
 Summarise the findings concisely and factually. Highlight specific concerns.\
 """
-
-
-@cache
-def _get_llm() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key)
-
-
-def _parse_domain(url: str) -> str:
-    """
-    Extract the bare hostname (without ``www.``) from a URL string.
-
-    :param url: A full URL or bare domain string.
-    :return: Lowercase hostname, e.g. ``"example.com"``.
-    """
-    try:
-        netloc = urlparse(url if "://" in url else f"https://{url}").netloc
-        return netloc.lower().removeprefix("www.")
-    except Exception:  # noqa: BLE001
-        return url.lower().removeprefix("www.")
 
 
 def _lookup_whois(domain: str) -> dict[str, str]:
@@ -108,7 +87,7 @@ class DomainAgeSkill(Skill):
         if not url:
             return {"skill_results": ["[domain_age]\nNo URL provided; domain check skipped."]}
 
-        domain = _parse_domain(url)
+        domain = hostname(url)
         if not domain:
             return {"skill_results": [f"[domain_age]\nCould not parse domain from URL: {url}"]}
 
@@ -147,7 +126,7 @@ class DomainAgeSkill(Skill):
 
         # LLM analysis
         prompt = f"Domain: {domain}\nAge: {age_str}\n\nWHOIS data:\n{whois_summary}"
-        response = await _get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
+        response = await get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
 
         lines = [
             "[domain_age]",

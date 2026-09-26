@@ -1,23 +1,18 @@
-import asyncio
 import contextlib
 import json
 import re
-from functools import cache
-from urllib.parse import urljoin, urlparse
-from urllib.request import Request as UrlRequest
-from urllib.request import urlopen
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from veridex.config import settings
 from veridex.graph.skills import Skill
 from veridex.graph.state import AnalysisState
+from veridex.llm import get_llm
+from veridex.net import fetch_public
 
 _MAX_REVIEWS = 40
 _MAX_REVIEW_CHARS = 400
-_FETCH_TIMEOUT = 10  # seconds for reviews-page HTTP fetch
 
 _ANALYZE_SYSTEM = """\
 You are a review integrity analyst for e-commerce products.
@@ -41,11 +36,6 @@ Legitimate signals to note:
 
 Provide a concise, factual summary of patterns observed and your integrity assessment.\
 """
-
-
-@cache
-def _get_llm() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key)
 
 
 # ── Review extraction ─────────────────────────────────────────────────────────
@@ -139,35 +129,18 @@ def _find_reviews_url(html: str, page_url: str) -> str | None:
     :return: Absolute URL of the reviews page, or ``None`` if not found.
     """
     soup = BeautifulSoup(html, "html.parser")
-    base = f"{urlparse(page_url).scheme}://{urlparse(page_url).netloc}"
 
     for a in soup.find_all("a", href=True):
-        href: str = a["href"]
+        href = str(a["href"])
         text = a.get_text(strip=True).lower()
         if any(
             kw in text for kw in ("all reviews", "see reviews", "more reviews", "customer reviews", "all customer")
         ):
-            return urljoin(base, href)
+            return urljoin(page_url, href)
         if re.search(r"/reviews?/?(\?|#|$)|[?&]tab=reviews|#reviews?", href, re.IGNORECASE):
-            return urljoin(base, href)
+            return urljoin(page_url, href)
 
     return None
-
-
-def _fetch_html(url: str) -> str:
-    """
-    Perform a simple HTTP GET and return the response body as text.
-
-    :param url: URL to fetch.
-    :return: Response body decoded as UTF-8.
-    :raises ValueError: If the fetched content cannot be decoded as a string.
-    """
-    req = UrlRequest(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=_FETCH_TIMEOUT) as resp:  # noqa: S310
-        html = resp.read().decode("utf-8", errors="replace")
-        if isinstance(html, str):
-            return html
-        raise ValueError("Fetched content is not a string")
 
 
 def _format_reviews(reviews: list[dict[str, str]]) -> str:
@@ -225,7 +198,7 @@ class ReviewIntegritySkill(Skill):
             reviews_url = _find_reviews_url(html, state["url"])
             if reviews_url:
                 with contextlib.suppress(Exception):
-                    extra_html = await asyncio.to_thread(_fetch_html, reviews_url)
+                    extra_html = (await fetch_public(reviews_url)).decode("utf-8", errors="replace")
                     extra = _extract_from_jsonld(extra_html) or _extract_from_microdata(extra_html)
                     if extra:
                         reviews = extra
@@ -245,7 +218,7 @@ class ReviewIntegritySkill(Skill):
         review_text = _format_reviews(reviews)
         total = len(reviews)
         prompt = f"Total reviews extracted: {total} (showing up to {_MAX_REVIEWS})\nSource: {source}\n\n{review_text}"
-        response = await _get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
+        response = await get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
 
         lines = [
             "[review_integrity]",

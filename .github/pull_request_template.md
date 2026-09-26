@@ -1,12 +1,9 @@
-# Description
+## What
 
-This PR adds:
-
-- *add things added here with more details*
+<!-- What does this change and why? -->
 
 ## Checklist
 
-- [ ] I have performed a self-review of my own code
-- [ ] I have updated the documentation accordingly (if applicable)
-- [ ] I have added myself as the assignee of this PR
-- [ ] I have formatted the PR title as one of: <feat|fix|chore|docs>: <short description>
+- [ ] `make lint` and `make test` pass locally
+- [ ] Tests added or updated for behaviour changes
+- [ ] PR title follows [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`)

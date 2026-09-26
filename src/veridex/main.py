@@ -25,8 +25,10 @@ async def lifespan(api: VeridexAPI) -> AsyncGenerator[None, None]:
     api.graph = build_graph(SKILLS)
     api.db_pool = await create_pool()
     await init_db(api.db_pool)
-    yield
-    await api.db_pool.close()
+    try:
+        yield
+    finally:
+        await api.db_pool.close()
     logger.info("Veridex backend service shutting down")
 
 
@@ -36,7 +38,8 @@ app = VeridexAPI(
     lifespan=lifespan,
 )
 
-# Allow browser extension requests
+# The API is called from a browser extension (arbitrary page origins) and uses
+# Basic auth rather than cookies, so a wildcard origin without credentials is safe.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -65,4 +68,6 @@ app.add_exception_handler(CustomAPIError, CustomAPIError.handle)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8080")), reload=bool(os.getenv("TESTING")))
+    uvicorn.run(
+        "veridex.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8080")), reload=bool(os.getenv("RELOAD"))
+    )

@@ -9,8 +9,6 @@ from veridex.graph.skills.domain_age import DomainAgeSkill
 from veridex.graph.skills.exif_check import ExifCheckSkill
 from veridex.graph.skills.html_source_signals import HtmlSourceSignalsSkill
 from veridex.graph.skills.page_content import PageContentSkill
-
-# from veridex.graph.skills.reddit_brand import RedditBrandSkill  # temporarily disabled
 from veridex.graph.skills.reverse_image_search import ReverseImageSearchSkill
 from veridex.graph.skills.review_integrity import ReviewIntegritySkill
 from veridex.graph.state import AnalysisState
@@ -20,7 +18,6 @@ from veridex.graph.state import AnalysisState
 SKILLS: list[Skill] = [
     PageContentSkill(),
     ReverseImageSearchSkill(),
-    # RedditBrandSkill(),  # temporarily disabled
     ExifCheckSkill(),
     HtmlSourceSignalsSkill(),
     DomainAgeSkill(),
@@ -35,12 +32,13 @@ def build_graph(skills: list[Skill] = SKILLS) -> CompiledStateGraph:
 
     The graph flows as follows::
 
-        preprocess → classify → [skill_A, skill_B, …] (parallel) → judge → END
+        preprocess → classify ─┬→ [skill_A, skill_B, …] (parallel) → judge → END
+                               └→ early_exit → END
 
-    ``classify`` runs first and determines the page type (aggregate listing,
-    storefront, article, or non-product). Skills with ``always_run=True`` fire
-    on every request; others only when their ``name`` appears in
-    ``state["flags"]``.
+    ``classify`` determines the page type. Marketplace listings and storefronts
+    fan out to the skills; articles and non-product pages exit early with a
+    score of ``-1``. Skills with ``always_run=True`` fire on every analysed
+    page; others only when their ``name`` appears in ``state["flags"]``.
 
     To extend: add a :class:`~veridex.graph.skills.Skill` subclass and register
     an instance in :data:`SKILLS`.
@@ -66,7 +64,7 @@ def build_graph(skills: list[Skill] = SKILLS) -> CompiledStateGraph:
         if state["page_type"] not in {"aggregate_listing", "storefront"}:
             return "early_exit"
         active = [s for s in skills if s.always_run or s.name in state["flags"]]
-        return [Send(s.name, state) for s in active]
+        return [Send(s.name, state) for s in active] or "judge"
 
     builder.add_conditional_edges("classify", _route_after_classify)
     builder.add_edge("early_exit", END)

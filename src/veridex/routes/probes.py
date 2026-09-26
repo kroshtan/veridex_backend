@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter
 
 from veridex import __version__
 from veridex.schemas.responses import Healthy
@@ -8,15 +7,10 @@ router = APIRouter(prefix="/v1/health", tags=["Health"])
 
 
 @router.get("", response_model=Healthy)
-def health(request: Request) -> Healthy | JSONResponse:
+def health() -> Healthy:
     """
-    Health endpoint that returns 200 once the Docling model is loaded.
+    Liveness probe. Always returns 200 while the process is serving requests.
 
-    \f
-
-    Used as both startup and liveness probe. Always returns 200.
-
-    :param request: The incoming request.
-    :return: Healthy response.
+    :return: Healthy response with the running version.
     """
     return Healthy(status="healthy", version=__version__)

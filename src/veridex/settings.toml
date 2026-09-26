@@ -1,17 +1,21 @@
+# Default configuration. Override any key with an environment variable prefixed
+# with VERIDEX_ (e.g. VERIDEX_OPENAI_API_KEY) or in a local, git-ignored
+# .secrets.toml next to this file.
+
 [default]
-logging_level = "DEBUG"
-reddit_user_agent = "veridex/1.0"
-postgres_uri = "placeholder"
+# LLM
+openai_api_key = ""
+llm_model = "gpt-4o-mini"
+
+# Database
+postgres_uri = "postgresql://veridex:veridex@localhost:5432/veridex"
+
+# Accounts
 signup_secret = ""
 free_daily_limit = 5
 premium_daily_limit = 25
+
+# Paddle billing ("production" or "sandbox")
 paddle_webhook_secret = ""
 paddle_api_key = ""
 paddle_environment = "production"
-reddit_client_id = ""
-reddit_client_secret = ""
-
-[development]
-
-[main]
-logging_level = "INFO"

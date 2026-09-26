@@ -1,12 +1,16 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from veridex.auth import BCRYPT_MAX_PASSWORD_BYTES
 
 
 class AnalyzeRequest(BaseModel):
     """Request body for the analyze endpoint."""
 
-    page_content: str = Field(description="Raw HTML or text content of the product page.")
+    page_content: str = Field(min_length=1, description="Raw HTML or text content of the product page.")
     url: str = Field(default="", description="URL of the product page.")
-    flags: list[str] = Field(default_factory=list, description="Skill names to activate (e.g. 'domain_age').")
+    flags: list[str] = Field(
+        default_factory=list, description="Names of optional skills to activate in addition to the default set."
+    )
 
 
 class CreateAccountRequest(BaseModel):
@@ -14,4 +18,11 @@ class CreateAccountRequest(BaseModel):
 
     username: str = Field(min_length=3, max_length=50, description="Unique username.")
     password: str = Field(min_length=8, description="Plain-text password (hashed server-side).")
-    contact_email: str = Field(description="Contact email address.")
+    contact_email: EmailStr = Field(description="Contact email address.")
+
+    @field_validator("password")
+    @classmethod
+    def _password_fits_bcrypt(cls, password: str) -> str:
+        if len(password.encode()) > BCRYPT_MAX_PASSWORD_BYTES:
+            raise ValueError(f"Password must be at most {BCRYPT_MAX_PASSWORD_BYTES} bytes.")
+        return password

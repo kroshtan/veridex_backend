@@ -1,83 +1,42 @@
-.PHONY: help test
+.PHONY: help install lint test test-unit test-integration db-up db-down run docker-up clean
 .DEFAULT_GOAL := help
 
-VENV_DIR = ./.venv
-PYTHON = $(VENV_DIR)/bin/python
+TEST_DB_CONTAINER = veridex-test-postgres
+TEST_DB_URI = postgresql://veridex:veridex@localhost:55432/veridex
 
-help:
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = "(: ).*?## "}; {sub("Makefile:", "", $$1); printf "\033[36m%-37s\033[0m %s\n", $$1, $$2}'
+help:  ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-clean: clean-build clean-pyc clean-test clean-venv  ## Remove build, test, coverage and Python artifacts (including venv)
-
-clean-build: ## Remove build artifacts
-	rm -rf build/
-	rm -rf dist/
-	rm -rf .eggs/
-	find . -name '*.egg-info' -exec rm -rf {} +
-	find . -name '*.egg' -exec rm -rf {} +
-
-clean-pyc: ## Remove Python file artifacts
-	find . -name '*.pyc' -exec rm -f {} +
-	find . -name '*.pyo' -exec rm -f {} +
-	find . -name '*~' -exec rm -f {} +
-	find . -name '__pycache__' -exec rm -rf {} +
-
-clean-test:  ## Remove test and coverage artifacts
-	find . -name '*,cover' -exec rm -f {} +
-	rm -f .coverage
-	rm -f coverage.xml
-	rm -rf htmlcov/
-	rm -rf .pytest_cache
-	rm -rf .mypy_cache
-	rm -rf .ruff_cache
-
-clean-venv: ## Remove venv
-	rm -rf $(VENV_DIR)
-
-create-venv:  ## Create Python venv if it does not exist
-	test -d $(VENV_DIR) || python -m venv $(VENV_DIR) && $(VENV_DIR)/bin/pip install --upgrade pip uv
-
-compile-requirements: create-venv ## Compile requirements
-	$(PYTHON) -m uv lock
-
-install: create-venv  ## Install dependencies
-	$(PYTHON) -m uv sync --all-groups
-	$(PYTHON) -m uv pip install --no-deps -e .
-	$(VENV_DIR)/bin/pre-commit install
-
-install-ci:  ## Install package and all its requirements for development
+install:  ## Install the package with dev dependencies and pre-commit hooks
 	uv sync --all-groups
-	uv pip install --no-deps -e .
+	uv run pre-commit install
 
-fix:  ## Run pre-commit on all files
-	$(VENV_DIR)/bin/pre-commit run --all-files
+lint:  ## Run all pre-commit hooks (ruff, mypy, pydoclint, ...) on every file
+	uv run pre-commit run --all-files
 
-test:  ## Run tests
-	uv run pytest .
-
-test-unit:  ## Run unit tests
+test-unit:  ## Run unit tests (no external services needed)
 	uv run pytest tests/unit
 
-test-integration:  ## Run integration tests
-	uv run pytest tests/integration
+test-integration: db-up  ## Run integration tests against a throwaway Postgres container
+	VERIDEX_TEST_POSTGRES_URI=$(TEST_DB_URI) uv run pytest tests/integration
 
-show-coverage:  ## Open the coverage report in the default browser
-	@xdg-open htmlcov/index.html || open htmlcov/index.html
+test: db-up  ## Run the full test suite
+	VERIDEX_TEST_POSTGRES_URI=$(TEST_DB_URI) uv run pytest
 
-run-local:  ## Run the app locally
-	PYTHONPATH=src $(PYTHON) src/veridex/main.py
+db-up:  ## Start the test Postgres container (port 55432)
+	@docker inspect $(TEST_DB_CONTAINER) >/dev/null 2>&1 || docker run -d --rm --name $(TEST_DB_CONTAINER) \
+		-e POSTGRES_USER=veridex -e POSTGRES_PASSWORD=veridex -e POSTGRES_DB=veridex -p 55432:5432 postgres:17-alpine >/dev/null
+	@until docker exec $(TEST_DB_CONTAINER) pg_isready -U veridex -q; do sleep 1; done
 
-dev-start: ## Start unoserver (runs in background)
-	@echo "Starting unoserver..."
-	@./scripts/unoserver.sh start
-	@echo ""
-	@echo "✓ Unoserver is running"
+db-down:  ## Stop the test Postgres container
+	-docker stop $(TEST_DB_CONTAINER)
 
-dev-stop: ## Stop unoserver
-	@./scripts/unoserver.sh stop
+run:  ## Run the API locally with auto-reload (needs Postgres, see docker-up)
+	uv run uvicorn veridex.main:app --reload --port 8080
 
-dev-status: ## Check if unoserver is running
-	@./scripts/unoserver.sh status
+docker-up:  ## Build and start the API + Postgres with docker compose
+	docker compose up --build
 
-dev-logs: ## View unoserver logs
-	@./scripts/unoserver.sh logs
+clean:  ## Remove build, test and cache artifacts
+	rm -rf build/ dist/ *.egg-info .coverage coverage.xml htmlcov/ .pytest_cache/ .mypy_cache/ .ruff_cache/
+	find . -name '__pycache__' -type d -prune -exec rm -rf {} +

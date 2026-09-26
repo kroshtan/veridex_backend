@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Promote a user to admin by setting subscription_status = 'admin' directly in the DB.
+"""
+Promote a user to admin by setting subscription_status = 'admin' directly in the DB.
 
-Usage (from the veridex_backend directory):
-    python scripts/promote_admin.py <username>
+Usage:
+    uv run scripts/promote_admin.py <username>
 """
 
 import asyncio
@@ -10,11 +11,11 @@ import sys
 
 import asyncpg
 
-sys.path.insert(0, "src")
-from veridex.config import settings  # noqa: E402
+from veridex.config import settings
 
 
 async def promote(username: str) -> None:
+    """Set ``subscription_status = 'admin'`` for ``username``."""
     conn = await asyncpg.connect(settings.postgres_uri)
     try:
         result = await conn.execute(

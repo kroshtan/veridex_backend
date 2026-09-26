@@ -18,7 +18,7 @@ class AnalyzeResponse(BaseModel):
 
 
 class AccountResponse(BaseModel):
-    """Response body for a created account."""
+    """Public view of an account."""
 
     id: int
     username: str
@@ -30,5 +30,11 @@ class UsageResponse(BaseModel):
     """Response body for daily usage information."""
 
     used_today: int
-    daily_limit: int | None = None
-    remaining: int | None = None
+    daily_limit: int | None = Field(default=None, description="Analyses allowed per UTC day; null if unlimited.")
+    remaining: int | None = Field(default=None, description="Analyses left today; null if unlimited.")
+
+
+class OkResponse(BaseModel):
+    """Generic success acknowledgement."""
+
+    ok: bool = True

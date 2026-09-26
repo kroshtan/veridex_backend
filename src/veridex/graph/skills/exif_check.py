@@ -1,22 +1,18 @@
 import asyncio
 import contextlib
 import io
-from functools import cache
-from urllib.request import Request as UrlRequest
-from urllib.request import urlopen
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from PIL import Image
 from PIL.ExifTags import GPSTAGS, TAGS
 
-from veridex.config import settings
 from veridex.graph.skills import Skill
 from veridex.graph.skills._image_utils import extract_image_urls, select_product_images
 from veridex.graph.state import AnalysisState
+from veridex.llm import get_llm
+from veridex.net import fetch_public
 
 _MAX_IMAGES = 3
-_FETCH_TIMEOUT = 10  # seconds
 
 # EXIF tags that are most informative for listing-authenticity checks.
 _INTERESTING_TAGS: frozenset[str] = frozenset(
@@ -55,31 +51,17 @@ Provide a concise, factual summary of findings — no score, just evidence.\
 """
 
 
-@cache
-def _get_llm() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key)
-
-
-def _fetch_and_extract_exif(url: str) -> dict[str, str]:
+def _extract_exif(image_bytes: bytes) -> dict[str, str]:
     """
-    Fetch an image by URL and return its interesting EXIF fields.
+    Return the interesting EXIF fields of an image.
 
-    Silently returns an empty dict if the image cannot be fetched or parsed,
-    or if it contains no EXIF metadata.
+    Returns an empty dict if the image cannot be parsed or has no EXIF metadata.
 
-    :param url: Public URL of the image to inspect.
+    :param image_bytes: Raw image file contents.
     :return: Dict mapping EXIF tag names to string values.
     """
     try:
-        req = UrlRequest(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urlopen(req, timeout=_FETCH_TIMEOUT) as resp:  # noqa: S310
-            image_bytes = resp.read()
-    except Exception:  # noqa: BLE001
-        return {}
-
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        exif = img.getexif()
+        exif = Image.open(io.BytesIO(image_bytes)).getexif()
     except Exception:  # noqa: BLE001
         return {}
 
@@ -106,6 +88,20 @@ def _fetch_and_extract_exif(url: str) -> dict[str, str]:
     return result
 
 
+async def _fetch_exif(url: str) -> dict[str, str]:
+    """
+    Download an image and extract its EXIF fields, returning ``{}`` on any failure.
+
+    :param url: Public URL of the image to inspect.
+    :return: Dict mapping EXIF tag names to string values.
+    """
+    try:
+        image_bytes = await fetch_public(url)
+    except Exception:  # noqa: BLE001
+        return {}
+    return await asyncio.to_thread(_extract_exif, image_bytes)
+
+
 class ExifCheckSkill(Skill):
     """Extract EXIF metadata from product images and check for listing discrepancies."""
 
@@ -127,10 +123,10 @@ class ExifCheckSkill(Skill):
 
         product_urls = await select_product_images(all_urls, max_images=_MAX_IMAGES)
 
-        # Step 2 – fetch images and extract EXIF (sync I/O off the event loop)
+        # Step 2 – fetch images concurrently and extract EXIF
+        exifs = await asyncio.gather(*(_fetch_exif(url) for url in product_urls))
         exif_blocks: list[str] = []
-        for i, url in enumerate(product_urls, start=1):
-            exif = await asyncio.to_thread(_fetch_and_extract_exif, url)
+        for i, (url, exif) in enumerate(zip(product_urls, exifs, strict=True), start=1):
             if exif:
                 fields = "\n".join(f"  {k}: {v}" for k, v in sorted(exif.items()))
                 exif_blocks.append(f"Image {i} ({url}):\n{fields}")
@@ -140,6 +136,6 @@ class ExifCheckSkill(Skill):
         # Step 3 – LLM comparison against listing text
         exif_summary = "\n\n".join(exif_blocks)
         prompt = f"Product listing:\n{state['cleaned_content'][:6_000]}\n\nEXIF metadata:\n{exif_summary}"
-        response = await _get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
+        response = await get_llm().ainvoke([SystemMessage(content=_ANALYZE_SYSTEM), HumanMessage(content=prompt)])
 
         return {"skill_results": [f"[exif_check]\n{response.content}"]}

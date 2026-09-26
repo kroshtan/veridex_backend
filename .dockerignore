@@ -1,23 +1,21 @@
-# Dependencies / build artefacts
+.git/
+.github/
 .venv/
 **/__pycache__/
-**/*.pyc
-**/*.pyo
+**/*.py[cod]
 *.egg-info/
-dist/
 build/
+dist/
+tests/
+scripts/
 
-# Test / lint artefacts
-.coverage
+.coverage*
 coverage.xml
 htmlcov/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# Dev tooling
-.pre-commit-config.yaml
-.git/
-
-# Secrets — pass via DYNACONF_* environment variables at runtime instead
-src/veridex/.secrets.toml
+# Secrets are passed via VERIDEX_* environment variables at runtime
+.env
+**/.secrets.toml

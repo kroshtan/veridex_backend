@@ -1,12 +1,9 @@
-from functools import cache
-
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from veridex.config import settings
 from veridex.graph.skills import Skill
 from veridex.graph.state import AnalysisState
+from veridex.llm import get_llm, get_structured_llm
 
 _MAX_CLAIMS = 20
 _MAX_CONTENT_CHARS = 12_000
@@ -57,18 +54,6 @@ class _ClaimsOutput(BaseModel):
     )
 
 
-@cache
-def _get_extract_llm() -> ChatOpenAI:
-    return ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key
-    ).with_structured_output(_ClaimsOutput)
-
-
-@cache
-def _get_verify_llm() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0, openai_api_key=settings.openai_api_key)
-
-
 class ClaimsVerificationSkill(Skill):
     """Extract explicit product claims from the listing and assess their plausibility."""
 
@@ -90,7 +75,7 @@ class ClaimsVerificationSkill(Skill):
         content = state["cleaned_content"][:_MAX_CONTENT_CHARS]
 
         # Step 1 – extract claims
-        claims_output: _ClaimsOutput = await _get_extract_llm().ainvoke(
+        claims_output: _ClaimsOutput = await get_structured_llm(_ClaimsOutput).ainvoke(
             [SystemMessage(content=_EXTRACT_SYSTEM), HumanMessage(content=content)]
         )
         claims = claims_output.claims
@@ -102,7 +87,7 @@ class ClaimsVerificationSkill(Skill):
 
         # Step 2 – verify plausibility
         claims_block = "\n".join(f"{i}. {c}" for i, c in enumerate(claims, start=1))
-        response = await _get_verify_llm().ainvoke(
+        response = await get_llm().ainvoke(
             [
                 SystemMessage(content=_VERIFY_SYSTEM),
                 HumanMessage(content=f"Product listing excerpt:\n{content[:3_000]}\n\nClaims:\n{claims_block}"),

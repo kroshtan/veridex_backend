@@ -21,7 +21,6 @@ _NOISE_TAGS = [
     "head",
 ]
 
-# Collapse any run of whitespace (spaces, tabs, newlines) to a single newline
 _WHITESPACE_RE = re.compile(r"[ \t]+")
 _BLANK_LINES_RE = re.compile(r"\n{3,}")
 
@@ -34,7 +33,7 @@ def clean_html(raw_html: str) -> str:
     then extracts visible text with collapsed whitespace.
 
     :param raw_html: The full HTML source of a web page.
-    :return: Cleaned plain-text representation of the page content.
+    :return: Cleaned plain-text content; empty if the page has no visible text.
     """
     soup = BeautifulSoup(raw_html, "html.parser")
 
@@ -44,6 +43,4 @@ def clean_html(raw_html: str) -> str:
     text = soup.get_text(separator="\n")
     text = _WHITESPACE_RE.sub(" ", text)
     text = _BLANK_LINES_RE.sub("\n\n", text)
-    if not isinstance(text, str) or not text.strip():
-        raise ValueError("Extracted text is not a string")
     return text.strip()
